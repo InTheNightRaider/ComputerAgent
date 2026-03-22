@@ -97,6 +97,11 @@ export type Settings = {
   require_approval_before_foreground_control: boolean;
   maximum_concurrent_background_jobs: number;
   default_dry_run: boolean;
+  model_catalog_path: string;
+  model_install_root: string;
+  selected_model_profile: string;
+  updater_mode: string;
+  release_channel: string;
 };
 
 export type RunRecord = {
@@ -126,6 +131,77 @@ export type RunRecord = {
   findings: SecurityFinding[];
 };
 
+export type ModelComponent = {
+  id: string;
+  name: string;
+  category: string;
+  runtime: string;
+  default_enabled: boolean;
+  selection_reason: string;
+  source: string;
+  download_ref: string;
+  license: string;
+  hardware_fit: string;
+  artifacts: Array<{ key: string; relative_path: string; required: boolean }>;
+};
+
+export type ModelInstallEntry = {
+  status: 'not_installed' | 'prepared' | 'downloading' | 'installed' | 'failed' | 'deferred';
+  local_paths: Record<string, string>;
+  resolved_artifacts: Array<{ key: string; required: boolean; target_path: string; exists: boolean }>;
+  last_error: string;
+  updated_at: string;
+};
+
+export type ModelValidation = {
+  profile: string;
+  planning_runtime: {
+    configured: boolean;
+    runnable: boolean;
+    required_components: string[];
+    missing_components: Array<{ id: string; name: string; status: string; missing_artifacts: string[]; last_error: string }>;
+    endpoint: { ok: boolean; detail: string; url: string };
+  };
+  full_stack: {
+    configured: boolean;
+    runnable: boolean;
+    required_components: string[];
+    missing_components: Array<{ id: string; name: string; status: string; missing_artifacts: string[]; last_error: string }>;
+    endpoint: { ok: boolean; detail: string; url: string };
+  };
+  components: Record<string, ModelInstallEntry>;
+};
+
+export type ModelStackResponse = {
+  catalog: {
+    profile: string;
+    open_source_only: boolean;
+    default_runtime: { planning_required_components: string[]; full_stack_required_components: string[] };
+    desktop_update_modes: string[];
+    notes: string[];
+    components: ModelComponent[];
+  };
+  catalog_summary: {
+    profile: string;
+    open_source_only: boolean;
+    planning_required_components: string[];
+    full_stack_required_components: string[];
+    default_enabled_components: Array<{ id: string; name: string; runtime: string; reason: string }>;
+    deferred_components: Array<{ id: string; name: string; reason: string }>;
+  };
+  install_state: { profile: string; components: Record<string, ModelInstallEntry> };
+  validation: ModelValidation;
+  provider: {
+    provider: string;
+    endpoint: string;
+    model_mode: string;
+    status: string;
+    message: string;
+    catalog: ModelStackResponse['catalog_summary'];
+    validation: ModelValidation;
+  };
+};
+
 export type Bootstrap = {
   settings: Settings;
   projects: Project[];
@@ -133,4 +209,5 @@ export type Bootstrap = {
   sample_prompts: string[];
   demo_paths: Record<string, string>;
   security: { findings: SecurityFinding[]; monitors: Array<Record<string, unknown>> };
+  model_stack: ModelStackResponse;
 };

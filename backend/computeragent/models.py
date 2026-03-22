@@ -20,6 +20,7 @@ ActionType = Literal[
     'request_foreground_control',
     'release_foreground_control',
     'file_list',
+    'file_backup',
     'file_rename',
     'file_move',
     'file_copy',
@@ -180,10 +181,11 @@ class ExecutionSummary:
 @dataclass
 class RollbackEntry:
     action_id: str
-    operation: Literal['rename', 'move', 'delete', 'copy', 'mkdir', 'quarantine']
+    operation: Literal['rename', 'move', 'delete', 'copy', 'mkdir', 'quarantine', 'backup']
     source: str | None = None
     destination: str | None = None
     backup_path: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

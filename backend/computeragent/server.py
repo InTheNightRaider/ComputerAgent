@@ -8,18 +8,20 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from .audit import AuditLogger
+from .audio.service import VoiceTranscriptionService
 from .browser.service import BrowserAutomationService
 from .config import SettingsManager, get_data_dir
 from .core.agent import UnifiedAgent
 from .executor import Executor
-from .models import Chat, ChatMessage, Plan, Project, RunRecord, utc_now
+from .install_state import InstallStateManager
+from .model_catalog import load_model_catalog, summarize_model_catalog
+from .models import Chat, ChatMessage, Plan, Project, RunRecord
 from .planner.service import PlannerService
 from .policy.service import PolicyService
 from .providers import LLMProviderAdapter, ProviderConfig
 from .research.service import ResearchService
 from .security.service import SecurityService
 from .storage import Storage
-from .audio.service import VoiceTranscriptionService
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = get_data_dir()
@@ -29,7 +31,8 @@ RESEARCH = ResearchService(REPO_ROOT)
 BROWSER = BrowserAutomationService(REPO_ROOT, DATA_DIR)
 SECURITY = SecurityService(STORAGE, DATA_DIR)
 VOICE = VoiceTranscriptionService()
-AGENT = UnifiedAgent(STORAGE, PlannerService(), PolicyService(), RESEARCH, BROWSER, SECURITY, SETTINGS)
+INSTALL_STATE = InstallStateManager(DATA_DIR, REPO_ROOT)
+AGENT = UnifiedAgent(STORAGE, PlannerService(), PolicyService(), RESEARCH, BROWSER, SECURITY, SETTINGS, repo_root=REPO_ROOT, data_dir=DATA_DIR)
 
 
 def json_response(handler: BaseHTTPRequestHandler, payload: dict, status: int = 200) -> None:
@@ -49,6 +52,20 @@ def parse_json(handler: BaseHTTPRequestHandler) -> dict:
     return json.loads(handler.rfile.read(length).decode('utf-8')) if length else {}
 
 
+def load_models_payload(settings: dict) -> dict:
+    catalog = load_model_catalog(REPO_ROOT, settings.get('model_catalog_path', 'shared/model-stack-8gb.json'))
+    provider = LLMProviderAdapter(ProviderConfig(settings['local_model_provider'], settings['local_model_endpoint'], settings['model_mode'], repo_root=REPO_ROOT, data_dir=DATA_DIR, catalog_path=settings.get('model_catalog_path', 'shared/model-stack-8gb.json')))
+    validation = provider.validate()
+    state = INSTALL_STATE.load(catalog)
+    return {
+        'catalog': catalog,
+        'catalog_summary': summarize_model_catalog(catalog),
+        'install_state': state,
+        'validation': validation,
+        'provider': provider.describe(),
+    }
+
+
 def ensure_seed_data() -> None:
     if STORAGE.list_projects():
         return
@@ -58,7 +75,7 @@ def ensure_seed_data() -> None:
         description='Demo project for browser research, Framer workflows, and file organization.',
         approved_directories=[str((REPO_ROOT / 'demo_data').resolve())],
         browser_memory={'platforms': ['Framer']},
-        docs_memory={'cached_platforms': ['Framer']},
+        docs_memory={'cached_platforms': ['Framer', 'Google Docs']},
         task_recipes=[{'title': 'Framer localization review', 'prompt': 'Research how Framer localization works, then inspect my current Framer editor and suggest the next steps.'}],
     )
     STORAGE.create_project(demo_project)
@@ -85,14 +102,16 @@ class ComputerAgentHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         settings = SETTINGS.load()
         if parsed.path == '/health':
-            provider = LLMProviderAdapter(ProviderConfig(settings['local_model_provider'], settings['local_model_endpoint'], settings['model_mode']))
+            payload = load_models_payload(settings)
             return json_response(self, {
                 'status': 'ok',
                 'data_dir': str(DATA_DIR),
-                'llm_adapter': provider.describe(),
+                'llm_adapter': payload['provider'],
                 'voice': VOICE.status(),
+                'model_stack': payload['validation'],
             })
         if parsed.path == '/bootstrap':
+            payload = load_models_payload(settings)
             return json_response(self, {
                 'settings': settings,
                 'projects': STORAGE.list_projects(),
@@ -101,6 +120,7 @@ class ComputerAgentHandler(BaseHTTPRequestHandler):
                     'Rename all PDFs in this folder to YYYYMMDD_title.',
                     'Organize my Projects folder by year.',
                     'Research how Framer localization works, then inspect my current Framer editor and suggest the next steps.',
+                    'Use ChatGPT to draft a company update, then open Google Docs and paste it with the correct headers.',
                     'Update the hero text in my Framer site draft.',
                     'Scan my Downloads folder for suspicious files.',
                     'Check this PC for common persistence indicators.',
@@ -116,7 +136,13 @@ class ComputerAgentHandler(BaseHTTPRequestHandler):
                     'findings': STORAGE.list_security_findings(),
                     'monitors': STORAGE.list_monitors(),
                 },
+                'model_stack': payload,
             })
+        if parsed.path == '/models':
+            return json_response(self, load_models_payload(settings))
+        if parsed.path == '/models/install-status':
+            catalog = load_model_catalog(REPO_ROOT, settings.get('model_catalog_path', 'shared/model-stack-8gb.json'))
+            return json_response(self, {'install_state': INSTALL_STATE.load(catalog)})
         if parsed.path.startswith('/chats/') and parsed.path.endswith('/messages'):
             chat_id = parsed.path.split('/')[2]
             return json_response(self, {'messages': STORAGE.list_messages(chat_id)})
@@ -136,6 +162,20 @@ class ComputerAgentHandler(BaseHTTPRequestHandler):
         ensure_seed_data()
         parsed = urlparse(self.path)
         payload = parse_json(self)
+        if parsed.path in {'/bootstrap', '/models/validate'}:
+            settings = SETTINGS.load() if parsed.path == '/bootstrap' else (SETTINGS.load() | payload)
+            return json_response(self, load_models_payload(settings))
+        if parsed.path == '/models/install':
+            settings = SETTINGS.load()
+            catalog = load_model_catalog(REPO_ROOT, settings.get('model_catalog_path', 'shared/model-stack-8gb.json'))
+            result = INSTALL_STATE.install_components(
+                catalog,
+                dry_run=bool(payload.get('dry_run', True)),
+                allow_oversized=bool(payload.get('allow_oversized', False)),
+                local_overrides=payload.get('local_overrides'),
+                download_missing=bool(payload.get('download_missing', False)),
+            )
+            return json_response(self, result)
         if parsed.path == '/settings':
             return json_response(self, SETTINGS.save(payload))
         if parsed.path == '/projects':

@@ -102,3 +102,16 @@ npm run test:backend
 
 ## Why this fixes the PR issue
 The repo no longer tracks generated Tauri icon binaries. Instead, source-controlled code generates them locally when needed. Combined with stronger ignore rules for build outputs and local environments, this keeps future PRs source-only and avoids PR tooling failures on generated/binary artifacts.
+
+
+## Request planning, policy, and Google Docs workflows
+
+The local backend now includes a request-receiver layer that classifies incoming work, attaches a deterministic planner prompt-template, enforces a JSON-backed policy whitelist (`shared/policy-whitelist.json` + `shared/policy-whitelist.schema.json`), chains immutable audit signatures, and creates hidden `.agent_backups` snapshots before rename/move operations. Google Docs document requests can now be planned explicitly, including ChatGPT-assisted drafting, Google Docs navigation, company-specific header ordering, and a required approval window before any live paste/edit step.
+
+## Open-source 8GB model stack
+
+ComputerAgent now includes a pinned open-source model/runtime manifest at `shared/model-stack-8gb.json`, persistent install-state tracking, and a local installer flow (`npm run install:model-stack`). The default `8gb-open-source` profile enables Mistral-7B-Instruct (GGUF), the Mistral tokenizer, e5-large-v2, Tesseract 5, Whisper tiny, a local Rust rule engine, and Qdrant, while tracking larger requested components like BGE, OpenCLIP, Video-CLIP, Faster-RCNN, Flamingo, Stable Diffusion 1.5, and PEFT-LoRA as deferred/opt-in for bigger machines. The backend now distinguishes selected/prepared/installed/runnable states and can validate whether the local planning runtime is actually ready before using the llama.cpp-compatible provider path. See `docs/open-source-model-stack.md` for details.
+
+## Windows installer + pushing updates
+
+ComputerAgent is now configured for a Windows-first NSIS installer flow with Tauri updater artifacts enabled. Use `npm run package:windows` for a local Windows installer build, and use the GitHub Actions workflow in `.github/workflows/windows-release.yml` with version tags like `app-v0.1.0` to publish signed installer/update artifacts. See `docs/windows-installer-updates.md` for the exact setup steps.

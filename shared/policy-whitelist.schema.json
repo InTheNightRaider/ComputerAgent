@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://computeragent.local/schemas/policy-whitelist.schema.json",
+  "title": "ComputerAgent Policy Whitelist",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "supported_actions",
+    "blocked_terms",
+    "system_path_markers",
+    "preferred_browser_domains",
+    "reserved_control_actions"
+  ],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "supported_actions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "blocked_terms": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "system_path_markers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "preferred_browser_domains": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "reserved_control_actions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  }
+}

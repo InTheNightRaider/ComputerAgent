@@ -1,4 +1,4 @@
-import type { Bootstrap, Message, RunRecord, Settings, Chat, Project, SecurityFinding } from './types';
+import type { Bootstrap, Message, ModelStackResponse, RunRecord, Settings, Chat, Project, SecurityFinding } from './types';
 
 const BASE_URL = 'http://127.0.0.1:8765';
 
@@ -15,6 +15,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   bootstrap: () => request<Bootstrap>('/bootstrap'),
+  refreshBootstrap: () => request<Bootstrap>('/bootstrap', { method: 'POST', body: JSON.stringify({}) }),
+  models: () => request<ModelStackResponse>('/models'),
+  installStatus: () => request<{ install_state: ModelStackResponse['install_state'] }>('/models/install-status'),
+  installModels: (payload: { dry_run: boolean; allow_oversized?: boolean; local_overrides?: Record<string, Record<string, string>>; download_missing?: boolean }) =>
+    request<{ profile: string; components: Record<string, unknown>; operations: Array<Record<string, unknown>> }>('/models/install', { method: 'POST', body: JSON.stringify(payload) }),
+  validateModels: () => request<ModelStackResponse>('/models/validate', { method: 'POST', body: JSON.stringify({}) }),
   messages: (chatId: string) => request<{ messages: Message[] }>(`/chats/${chatId}/messages`),
   createProject: (payload: { name: string; description: string; approved_directories: string[] }) =>
     request<{ project: Project }>('/projects', { method: 'POST', body: JSON.stringify(payload) }),

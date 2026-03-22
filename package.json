@@ -14,7 +14,10 @@
     "dev": "npm run dev:tauri",
     "build:web": "npm --prefix frontend run build",
     "package": "python scripts/prepare_local_assets.py && npm --prefix frontend run tauri build",
+    "package:windows": "python scripts/prepare_local_assets.py && npm --prefix frontend run tauri build -- --bundles nsis",
     "launch:built": "python scripts/launch_built.py",
-    "test:backend": "python -m unittest discover -s backend/tests"
+    "test:backend": "python -m unittest discover -s backend/tests",
+    "install:model-stack": "python scripts/install_open_source_stack.py",
+    "install:model-stack:dry-run": "python scripts/install_open_source_stack.py --dry-run"
   }
 }

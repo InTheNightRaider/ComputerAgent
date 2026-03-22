@@ -7,7 +7,7 @@ from typing import Any
 
 from .audit import AuditLogger
 from .browser.service import BrowserAutomationService
-from .models import ExecutionSummary, Plan, PlanAction, RollbackEntry, SecurityFinding
+from .models import ExecutionSummary, Plan, PlanAction, RollbackEntry
 from .security.service import SecurityService
 
 
@@ -41,6 +41,8 @@ class Executor:
             try:
                 if action.type == 'file_list':
                     self._list_files(action.params)
+                elif action.type == 'file_backup':
+                    self._backup(action.id, action.params, dry_run)
                 elif action.type == 'mkdir':
                     self._mkdir(action.id, action.params, dry_run)
                 elif action.type == 'file_rename':
@@ -92,6 +94,7 @@ class Executor:
         messages: list[str] = []
         for entry in reversed(entries):
             op = entry['operation']
+            metadata = entry.get('metadata', {})
             if op in {'rename', 'move'}:
                 src = Path(entry['destination'])
                 dest = Path(entry['source'])
@@ -99,6 +102,15 @@ class Executor:
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(src), str(dest))
                     messages.append(f'Restored {dest.name}.')
+                elif entry.get('backup_path'):
+                    backup = Path(entry['backup_path'])
+                    if backup.exists():
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(backup, dest)
+                        messages.append(f'Restored {dest.name} from backup snapshot.')
+                replaced_backup = metadata.get('replaced_destination_backup')
+                if replaced_backup and dest.exists() and Path(replaced_backup).exists():
+                    Path(replaced_backup).unlink(missing_ok=True)
             elif op in {'delete', 'quarantine'}:
                 backup = Path(entry['backup_path'])
                 dest = Path(entry['source'])
@@ -106,9 +118,9 @@ class Executor:
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(backup), str(dest))
                     messages.append(f'Restored {dest.name} from backup/quarantine.')
-            elif op == 'copy':
+            elif op in {'copy', 'backup'}:
                 dest = Path(entry['destination'])
-                if dest.exists():
+                if dest.exists() and op == 'copy':
                     dest.unlink()
                     messages.append(f'Removed copied file {dest.name}.')
             elif op == 'mkdir':
@@ -120,9 +132,23 @@ class Executor:
 
     def _backup_dir(self, working_path: Path, key: str) -> Path:
         configured = self.settings.get(key, '.agent_backups')
-        path = working_path / configured if not Path(configured).is_absolute() else Path(configured)
+        configured_path = Path(configured)
+        if not configured_path.is_absolute():
+            name = configured_path.name if configured_path.name.startswith('.') else f'.{configured_path.name}'
+            path = working_path / name
+        else:
+            path = configured_path
         path.mkdir(parents=True, exist_ok=True)
         return path
+
+    def _timestamped_backup_path(self, source: Path, key: str = 'backup_location') -> Path:
+        backup_dir = self._backup_dir(source.parent, key)
+        return backup_dir / f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{source.name}"
+
+    def _snapshot_before_mutation(self, source: Path) -> str:
+        backup_path = self._timestamped_backup_path(source)
+        shutil.copy2(source, backup_path)
+        return str(backup_path)
 
     def _list_files(self, params: dict[str, Any]) -> None:
         directory = Path(params['directory'])
@@ -132,6 +158,16 @@ class Executor:
         matched = [file_path.name for file_path in files if file_path.is_file() and (not patterns or any(file_path.name.lower().endswith(pattern.lower()) for pattern in patterns))]
         self.summary_lines.append(f'Found {len(matched)} matching files in {directory.name}.')
         self.logger.log('info', 'Listed files.', detail={'count': len(matched), 'samples': matched[:10]})
+
+    def _backup(self, action_id: str, params: dict[str, Any], dry_run: bool) -> None:
+        source = Path(params['source'])
+        backup_path = self._timestamped_backup_path(source)
+        if dry_run:
+            self.summary_lines.append(f'Dry run: would back up {source.name} into {backup_path.parent.name}/.')
+            return
+        shutil.copy2(source, backup_path)
+        self.summary_lines.append(f'Created hidden backup for {source.name}.')
+        self.rollback_entries.append(RollbackEntry(action_id=action_id, operation='backup', source=str(source), destination=str(backup_path), backup_path=str(backup_path)).to_dict())
 
     def _mkdir(self, action_id: str, params: dict[str, Any], dry_run: bool) -> None:
         path = Path(params['path'])
@@ -148,8 +184,11 @@ class Executor:
         if dry_run:
             self.summary_lines.append(f'Dry run: would rename {source.name} to {destination.name}.')
             return
+        if destination.exists():
+            raise FileExistsError(f'Destination already exists: {destination}')
+        backup_path = self._snapshot_before_mutation(source)
         source.rename(destination)
-        self.rollback_entries.append(RollbackEntry(action_id=action_id, operation='rename', source=str(source), destination=str(destination)).to_dict())
+        self.rollback_entries.append(RollbackEntry(action_id=action_id, operation='rename', source=str(source), destination=str(destination), backup_path=backup_path).to_dict())
 
     def _move(self, action_id: str, params: dict[str, Any], dry_run: bool) -> None:
         source = Path(params['source'])
@@ -157,9 +196,12 @@ class Executor:
         if dry_run:
             self.summary_lines.append(f'Dry run: would move {source.name} to {destination.parent.name}/.')
             return
+        if destination.exists():
+            raise FileExistsError(f'Destination already exists: {destination}')
         destination.parent.mkdir(parents=True, exist_ok=True)
+        backup_path = self._snapshot_before_mutation(source)
         shutil.move(str(source), str(destination))
-        self.rollback_entries.append(RollbackEntry(action_id=action_id, operation='move', source=str(source), destination=str(destination)).to_dict())
+        self.rollback_entries.append(RollbackEntry(action_id=action_id, operation='move', source=str(source), destination=str(destination), backup_path=backup_path).to_dict())
 
     def _copy(self, action_id: str, params: dict[str, Any], dry_run: bool) -> None:
         source = Path(params['source'])
@@ -167,6 +209,8 @@ class Executor:
         if dry_run:
             self.summary_lines.append(f'Dry run: would copy {source.name} to {destination.name}.')
             return
+        if destination.exists():
+            raise FileExistsError(f'Destination already exists: {destination}')
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
         self.rollback_entries.append(RollbackEntry(action_id=action_id, operation='copy', source=str(source), destination=str(destination)).to_dict())
@@ -174,10 +218,9 @@ class Executor:
     def _delete_or_quarantine(self, action_id: str, action: PlanAction, dry_run: bool) -> None:
         source = Path(action.params['source'])
         key = 'quarantine_location' if action.type == 'quarantine_file' else 'backup_location'
-        backup_dir = self._backup_dir(source.parent, key)
-        backup_path = backup_dir / f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{source.name}"
+        backup_path = self._timestamped_backup_path(source, key)
         if dry_run:
-            self.summary_lines.append(f'Dry run: would move {source.name} into {backup_dir.name}.')
+            self.summary_lines.append(f'Dry run: would move {source.name} into {backup_path.parent.name}.')
             return
         shutil.move(str(source), str(backup_path))
         operation = 'quarantine' if action.type == 'quarantine_file' else 'delete'

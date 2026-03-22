@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './lib/api';
-import type { Bootstrap, Chat, Message, Project, RunRecord, SecurityFinding, Settings } from './lib/types';
+import type { Bootstrap, Chat, Message, ModelStackResponse, Project, RunRecord, SecurityFinding, Settings } from './lib/types';
 import './styles.css';
 
 declare global {
@@ -54,6 +54,7 @@ export default function App() {
   const [logs, setLogs] = useState<Array<Record<string, unknown>>>([]);
   const [summary, setSummary] = useState<RunRecord['execution_summary'] | null>(null);
   const [statusMessage, setStatusMessage] = useState('Loading local agent…');
+  const [modelStack, setModelStack] = useState<ModelStackResponse | null>(null);
   const [drawerTab, setDrawerTab] = useState<'plan' | 'logs' | 'findings' | 'settings'>('plan');
   const [isSending, setIsSending] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -88,6 +89,7 @@ export default function App() {
     setProjects(data.projects);
     setChats(data.chats);
     setFindings(data.security.findings);
+    setModelStack(data.model_stack);
     setTargetDirectory(data.demo_paths.inbox ?? '');
     const initialChat = data.chats[0]?.id ?? '';
     setSelectedChatId(initialChat);
@@ -198,6 +200,25 @@ export default function App() {
     const saved = await api.saveSettings(settings);
     setSettings(saved);
     setStatusMessage('Settings saved locally.');
+  }
+
+  async function checkModelStack() {
+    const response = await api.models();
+    setModelStack(response);
+    setStatusMessage(`Stack checked. Planning runtime runnable: ${response.validation.planning_runtime.runnable ? 'yes' : 'no'}.`);
+  }
+
+  async function prepareModelStack(dryRun = false) {
+    const response = await api.installModels({ dry_run: dryRun });
+    const refreshed = await api.models();
+    setModelStack(refreshed);
+    setStatusMessage(dryRun ? 'Dry-run completed for the default 8GB stack.' : `Install/prepare completed for ${response.profile}.`);
+  }
+
+  async function validateModelStack() {
+    const response = await api.validateModels();
+    setModelStack(response);
+    setStatusMessage(response.validation.planning_runtime.runnable ? 'Default planning runtime is runnable.' : 'Default planning runtime is not runnable yet. Check missing artifacts below.');
   }
 
   function toggleVoice() {
@@ -435,6 +456,8 @@ export default function App() {
                 <div className="settings-grid">
                   <label>Planner mode<select value={settings.planner_mode} onChange={(event) => setSettings({ ...settings, planner_mode: event.target.value })}><option value="mock">Mock</option><option value="llm">Local LLM</option></select></label>
                   <label>Browser mode<select value={settings.browser_mode} onChange={(event) => setSettings({ ...settings, browser_mode: event.target.value })}><option value="headed">Headed</option><option value="headless">Headless</option></select></label>
+                  <label>Local provider<input value={settings.local_model_provider} onChange={(event) => setSettings({ ...settings, local_model_provider: event.target.value })} /></label>
+                  <label>Local endpoint<input value={settings.local_model_endpoint} onChange={(event) => setSettings({ ...settings, local_model_endpoint: event.target.value })} /></label>
                   <label>Preferred docs domains<textarea value={settings.preferred_docs_domains.join('\n')} onChange={(event) => setSettings({ ...settings, preferred_docs_domains: event.target.value.split('\n').filter(Boolean) })} /></label>
                   <label>Allowed directories<textarea value={settings.allowed_directories.join('\n')} onChange={(event) => setSettings({ ...settings, allowed_directories: event.target.value.split('\n').filter(Boolean) })} /></label>
                   <label>Watched folders<textarea value={settings.security_watched_folders.join('\n')} onChange={(event) => setSettings({ ...settings, security_watched_folders: event.target.value.split('\n').filter(Boolean) })} /></label>
@@ -446,6 +469,49 @@ export default function App() {
                   <label><input type="checkbox" checked={settings.project_memory_enabled} onChange={(event) => setSettings({ ...settings, project_memory_enabled: event.target.checked })} /> Project memory enabled</label>
                   <label><input type="checkbox" checked={settings.require_approval_before_foreground_control} onChange={(event) => setSettings({ ...settings, require_approval_before_foreground_control: event.target.checked })} /> Require approval before foreground control</label>
                   <label><input type="checkbox" checked={settings.default_dry_run} onChange={(event) => setSettings({ ...settings, default_dry_run: event.target.checked })} /> Default to dry run</label>
+                </div>
+                <div className="card" style={{ marginTop: '1rem' }}>
+                  <h4>Local 8GB model stack</h4>
+                  <p className="muted">Selected profile: <strong>{settings.selected_model_profile}</strong></p>
+                  <p className="muted">Planning runtime: <strong>{modelStack?.validation.planning_runtime.runnable ? 'Runnable' : 'Not runnable'}</strong></p>
+                  <p className="muted">Full stack: <strong>{modelStack?.validation.full_stack.runnable ? 'Runnable' : 'Not runnable'}</strong></p>
+                  <div className="button-row">
+                    <button className="secondary-button" onClick={() => void checkModelStack()}>Check stack</button>
+                    <button className="ghost-button" onClick={() => void prepareModelStack(true)}>Dry-run install</button>
+                    <button className="primary-button" onClick={() => void prepareModelStack(false)}>Prepare/install</button>
+                    <button className="ghost-button" onClick={() => void validateModelStack()}>Validate stack</button>
+                  </div>
+                  <div className="settings-grid" style={{ marginTop: '1rem' }}>
+                    <div>
+                      <h4>Enabled components</h4>
+                      {(modelStack?.catalog_summary.default_enabled_components ?? []).map((component) => (
+                        <div key={component.id} className="source-card large" style={{ marginBottom: '0.5rem' }}>
+                          <strong>{component.name}</strong>
+                          <p className="muted">{component.runtime} • {(modelStack?.install_state.components[component.id]?.status ?? 'unknown')}</p>
+                          <p className="muted">{component.reason}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <h4>Deferred components</h4>
+                      {(modelStack?.catalog_summary.deferred_components ?? []).map((component) => (
+                        <div key={component.id} className="source-card large" style={{ marginBottom: '0.5rem' }}>
+                          <strong>{component.name}</strong>
+                          <p className="muted">Deferred</p>
+                          <p className="muted">{component.reason}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {modelStack && !modelStack.validation.planning_runtime.runnable ? (
+                    <div className="validation-box" style={{ marginTop: '1rem' }}>
+                      <strong>Missing runtime artifacts</strong>
+                      {modelStack.validation.planning_runtime.missing_components.map((component) => (
+                        <p key={component.id} className="muted">{component.name}: {component.missing_artifacts.join(', ') || component.last_error || component.status}</p>
+                      ))}
+                      <p className="muted">Endpoint: {modelStack.validation.planning_runtime.endpoint.detail}</p>
+                    </div>
+                  ) : null}
                 </div>
                 <button className="primary-button" onClick={() => void saveSettings()}>Save settings</button>
               </section>
