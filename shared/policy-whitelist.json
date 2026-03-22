@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "supported_actions": [
+    "research_docs",
+    "inspect_ui",
+    "build_ui_map",
+    "open_browser_context",
+    "browser_navigate",
+    "browser_click",
+    "browser_fill",
+    "browser_select",
+    "browser_extract",
+    "browser_wait_for",
+    "browser_screenshot",
+    "browser_snapshot",
+    "request_foreground_control",
+    "release_foreground_control",
+    "file_list",
+    "file_backup",
+    "file_rename",
+    "file_move",
+    "file_copy",
+    "file_delete",
+    "mkdir",
+    "quarantine_file",
+    "security_scan_quick",
+    "security_scan_deep",
+    "security_monitor_start",
+    "security_monitor_stop",
+    "summarize_results"
+  ],
+  "blocked_terms": [
+    "credential dump",
+    "persistence",
+    "privilege escalation",
+    "exploit",
+    "lateral movement"
+  ],
+  "system_path_markers": [
+    "/etc",
+    "/usr",
+    "system32",
+    "appdata\\roaming\\microsoft\\windows\\start menu\\programs\\startup"
+  ],
+  "preferred_browser_domains": [
+    "framer.com",
+    "www.framer.com",
+    "docs.google.com",
+    "chatgpt.com",
+    "chat.openai.com"
+  ],
+  "reserved_control_actions": [
+    "request_foreground_control",
+    "browser_fill",
+    "browser_click",
+    "browser_select"
+  ]
+}

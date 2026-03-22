@@ -1,0 +1,295 @@
+{
+  "profile": "8gb-open-source",
+  "open_source_only": true,
+  "desktop_update_modes": [
+    "signed_online_release",
+    "offline_imported_installer_or_bundle"
+  ],
+  "default_runtime": {
+    "planning_required_components": [
+      "mistral-7b-instruct-gguf",
+      "mistral-tokenizer",
+      "e5-large-v2"
+    ],
+    "full_stack_required_components": [
+      "mistral-7b-instruct-gguf",
+      "mistral-tokenizer",
+      "e5-large-v2",
+      "rust-rule-engine",
+      "qdrant"
+    ]
+  },
+  "notes": [
+    "This manifest keeps the stack fully open-source.",
+    "Default-enabled components target an 8GB-friendly starting profile.",
+    "Deferred components remain tracked but are not auto-enabled until more RAM/VRAM or a manual override is available."
+  ],
+  "components": [
+    {
+      "id": "mistral-7b-instruct-gguf",
+      "name": "Mistral-7B-Instruct-v0.1 (GGUF)",
+      "category": "llm_light",
+      "runtime": "llama.cpp",
+      "default_enabled": true,
+      "selection_reason": "Primary planner model for the 8GB-friendly profile using quantized GGUF deployment.",
+      "source": "Hugging Face",
+      "download_ref": "mistralai/Mistral-7B-Instruct-v0.1",
+      "license": "Apache-2.0",
+      "hardware_fit": "quantized_cpu_or_8gb_gpu",
+      "artifacts": [
+        {
+          "key": "model",
+          "relative_path": "models/mistral-7b-instruct-gguf/mistral-7b-instruct-v0.1.Q4_K_M.gguf",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "mistral-tokenizer",
+      "name": "Mistral Tokenizer",
+      "category": "tokenizer",
+      "runtime": "llama.cpp",
+      "default_enabled": true,
+      "selection_reason": "Required tokenizer/pre-post-processing for the selected Mistral stack.",
+      "source": "llama.cpp utilities",
+      "download_ref": "llama.cpp tokenizer utilities",
+      "license": "Apache-2.0",
+      "hardware_fit": "lightweight",
+      "artifacts": [
+        {
+          "key": "tokenizer",
+          "relative_path": "models/mistral-tokenizer/tokenizer.model",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "e5-large-v2",
+      "name": "e5-large-v2",
+      "category": "embedding",
+      "runtime": "sentence-transformers",
+      "default_enabled": true,
+      "selection_reason": "Primary English retrieval model for offline knowledge-base search.",
+      "source": "Hugging Face",
+      "download_ref": "intfloat/e5-large-v2",
+      "license": "Apache-2.0",
+      "hardware_fit": "cpu_ok_or_low_vram",
+      "artifacts": [
+        {
+          "key": "weights",
+          "relative_path": "models/e5-large-v2/model.safetensors",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "bge-large-zh-en",
+      "name": "BGE-large-zh-en",
+      "category": "embedding",
+      "runtime": "sentence-transformers",
+      "default_enabled": false,
+      "selection_reason": "Tracked for multilingual retrieval but deferred from the default 8GB profile because of memory pressure when combined with the main LLM.",
+      "source": "Hugging Face",
+      "download_ref": "BAAI/bge-large-zh-en",
+      "license": "Apache-2.0",
+      "hardware_fit": "deferred_8gb",
+      "artifacts": [
+        {
+          "key": "weights",
+          "relative_path": "models/bge-large-zh-en/model.safetensors",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "openclip-vit-h-14",
+      "name": "OpenCLIP ViT-H-14",
+      "category": "vision_encoder",
+      "runtime": "openclip",
+      "default_enabled": false,
+      "selection_reason": "Requested multimodal encoder, but deferred by default because it is large for the initial 8GB profile.",
+      "source": "Hugging Face",
+      "download_ref": "laion/CLIP-ViT-H-14-laion2B-s32B-b79K",
+      "license": "MIT",
+      "hardware_fit": "deferred_8gb",
+      "artifacts": [
+        {
+          "key": "weights",
+          "relative_path": "models/openclip-vit-h-14/openclip.bin",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "tesseract-5",
+      "name": "Tesseract 5 + LSTM language packs",
+      "category": "ocr",
+      "runtime": "tesseract",
+      "default_enabled": true,
+      "selection_reason": "CPU-friendly OCR engine that fits the initial local stack.",
+      "source": "GitHub",
+      "download_ref": "tesseract-ocr/tesseract",
+      "license": "Apache-2.0",
+      "hardware_fit": "cpu_friendly",
+      "artifacts": [
+        {
+          "key": "binary",
+          "relative_path": "models/tesseract-5/tesseract.exe",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "whisper-tiny",
+      "name": "Whisper tiny",
+      "category": "speech_to_text",
+      "runtime": "whisper",
+      "default_enabled": true,
+      "selection_reason": "Smallest practical offline transcription model for desktop voice commands.",
+      "source": "Hugging Face",
+      "download_ref": "openai/whisper-tiny",
+      "license": "MIT",
+      "hardware_fit": "cpu_friendly",
+      "artifacts": [
+        {
+          "key": "model",
+          "relative_path": "models/whisper-tiny/model.bin",
+          "required": false
+        }
+      ]
+    },
+    {
+      "id": "video-clip-b",
+      "name": "Video-CLIP",
+      "category": "video_analysis",
+      "runtime": "video-clip",
+      "default_enabled": false,
+      "selection_reason": "Tracked for future video summarization but deferred from the default 8GB profile.",
+      "source": "Hugging Face",
+      "download_ref": "facebook/video-clip-b",
+      "license": "Apache-2.0",
+      "hardware_fit": "deferred_8gb",
+      "artifacts": [
+        {
+          "key": "weights",
+          "relative_path": "models/video-clip-b/model.bin",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "faster-rcnn-r50-fpn",
+      "name": "Faster-RCNN-R50-FPN",
+      "category": "video_analysis",
+      "runtime": "detectron2",
+      "default_enabled": false,
+      "selection_reason": "Object detection support is possible later, but deferred from the initial lightweight local stack.",
+      "source": "Detectron2 model zoo",
+      "download_ref": "faster_rcnn_R_50_FPN",
+      "license": "BSD-3",
+      "hardware_fit": "deferred_8gb",
+      "artifacts": [
+        {
+          "key": "weights",
+          "relative_path": "models/faster-rcnn-r50-fpn/model.pth",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "flamingo-mono-v2",
+      "name": "Flamingo-mono-v2",
+      "category": "multimodal_captioning",
+      "runtime": "transformers",
+      "default_enabled": false,
+      "selection_reason": "Requested, but too large for the default 8GB profile.",
+      "source": "Upstream project",
+      "download_ref": "flamingo-mono-v2",
+      "license": "Open-source",
+      "hardware_fit": "deferred_8gb",
+      "artifacts": [
+        {
+          "key": "weights",
+          "relative_path": "models/flamingo-mono-v2/model.bin",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "stable-diffusion-1.5-fp16",
+      "name": "Stable Diffusion 1.5 FP16",
+      "category": "text_to_image",
+      "runtime": "diffusers",
+      "default_enabled": false,
+      "selection_reason": "Included in the open-source stack manifest, but deferred by default because FP16 generation is not a good fit for the initial 8GB-friendly profile.",
+      "source": "Hugging Face",
+      "download_ref": "stabilityai/stable-diffusion-1.5",
+      "license": "CreativeML OpenRAIL-M",
+      "hardware_fit": "deferred_8gb",
+      "artifacts": [
+        {
+          "key": "weights",
+          "relative_path": "models/stable-diffusion-1.5-fp16/model.safetensors",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "rust-rule-engine",
+      "name": "Rust rule engine",
+      "category": "policy_engine",
+      "runtime": "rust",
+      "default_enabled": true,
+      "selection_reason": "Selected as the non-neural local rule engine foundation.",
+      "source": "Local repo/runtime",
+      "download_ref": "embedded local rule-engine module",
+      "license": "Apache-2.0",
+      "hardware_fit": "lightweight",
+      "artifacts": [
+        {
+          "key": "engine",
+          "relative_path": "models/rust-rule-engine/rule-engine.wasm",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "qdrant",
+      "name": "Qdrant",
+      "category": "vector_store",
+      "runtime": "qdrant",
+      "default_enabled": true,
+      "selection_reason": "Primary local vector store for retrieval and offline cache indexing.",
+      "source": "GitHub",
+      "download_ref": "qdrant/qdrant",
+      "license": "Apache-2.0",
+      "hardware_fit": "cpu_friendly",
+      "artifacts": [
+        {
+          "key": "binary",
+          "relative_path": "models/qdrant/qdrant.exe",
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "peft-lora",
+      "name": "PEFT LoRA",
+      "category": "fine_tuning",
+      "runtime": "peft",
+      "default_enabled": false,
+      "selection_reason": "Tracked for optional fine-tuning later, but not enabled in the initial lightweight desktop profile.",
+      "source": "GitHub",
+      "download_ref": "huggingface/peft",
+      "license": "Apache-2.0",
+      "hardware_fit": "deferred_8gb",
+      "artifacts": [
+        {
+          "key": "package",
+          "relative_path": "models/peft-lora/peft.whl",
+          "required": true
+        }
+      ]
+    }
+  ]
+}
