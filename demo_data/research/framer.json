@@ -1,0 +1,19 @@
+{
+  "summary": "Framer localization is typically configured through site/project settings, content structures, and publish-ready locale workflows. The agent should inspect the live editor after grounding itself in the terminology.",
+  "sources": [
+    {
+      "title": "Framer localization overview",
+      "domain": "framer.com",
+      "url": "https://www.framer.com/help/articles/localization/",
+      "summary": "Explains locale setup, translated content management, and publishing considerations for localized experiences.",
+      "official": true
+    },
+    {
+      "title": "Framer CMS and content structure",
+      "domain": "framer.com",
+      "url": "https://www.framer.com/help/articles/cms/",
+      "summary": "Describes how content collections and reusable structures affect website updates and publishing workflows.",
+      "official": true
+    }
+  ]
+}

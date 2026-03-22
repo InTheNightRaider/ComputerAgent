@@ -1,0 +1,26 @@
+{
+  "framer_localization_research": {
+    "prompt": "Research how Framer localization works, then inspect my current Framer editor and suggest the next steps.",
+    "actions": [
+      {"id": "open_browser_context", "type": "open_browser_context", "execution_lane": "background_safe"},
+      {"id": "browser_snapshot", "type": "browser_snapshot", "execution_lane": "background_safe"},
+      {"id": "build_ui_map", "type": "build_ui_map", "execution_lane": "background_safe"},
+      {"id": "summarize_results", "type": "summarize_results", "execution_lane": "background_safe"}
+    ]
+  },
+  "downloads_security_scan": {
+    "prompt": "Scan my Downloads folder for suspicious files.",
+    "actions": [
+      {"id": "security_action", "type": "security_scan_quick", "execution_lane": "background_safe"},
+      {"id": "summarize", "type": "summarize_results", "execution_lane": "background_safe"}
+    ]
+  },
+  "background_file_move": {
+    "prompt": "Move all PNG files into an Images folder while I continue working.",
+    "actions": [
+      {"id": "mkdir_images", "type": "mkdir", "execution_lane": "background_safe"},
+      {"id": "move_png_1", "type": "file_move", "execution_lane": "background_safe"},
+      {"id": "summarize", "type": "summarize_results", "execution_lane": "background_safe"}
+    ]
+  }
+}
