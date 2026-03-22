@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ComputerAgent Unified Plan",
+  "type": "object",
+  "required": ["plan_id", "prompt", "actions", "validation"],
+  "properties": {
+    "plan_id": { "type": "string" },
+    "prompt": { "type": "string" },
+    "mode": { "enum": ["mock", "llm"] },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "description", "params", "risk_level", "requires_confirmation", "execution_lane", "target_app", "confidence", "evidence", "fallback_strategy", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": {
+            "enum": [
+              "research_docs", "inspect_ui", "build_ui_map", "open_browser_context", "browser_navigate", "browser_click", "browser_fill", "browser_select", "browser_extract", "browser_wait_for", "browser_screenshot", "browser_snapshot", "request_foreground_control", "release_foreground_control", "file_list", "file_rename", "file_move", "file_copy", "mkdir", "quarantine_file", "security_scan_quick", "security_scan_deep", "security_monitor_start", "security_monitor_stop", "summarize_results"
+            ]
+          },
+          "description": { "type": "string" },
+          "params": { "type": "object" },
+          "risk_level": { "enum": ["low", "medium", "high"] },
+          "requires_confirmation": { "type": "boolean" },
+          "execution_lane": { "enum": ["background_safe", "reserved_control"] },
+          "target_app": { "type": "string" },
+          "confidence": { "type": "number" },
+          "evidence": { "type": "array", "items": { "type": "string" } },
+          "fallback_strategy": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["allowed", "issues"],
+      "properties": {
+        "allowed": { "type": "boolean" },
+        "issues": { "type": "array" }
+      }
+    }
+  }
+}

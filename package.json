@@ -1,0 +1,20 @@
+{
+  "name": "computeragent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ComputerAgent desktop MVP",
+  "scripts": {
+    "prepare:assets": "python scripts/prepare_local_assets.py",
+    "install:frontend": "npm install --prefix frontend",
+    "install:backend": "python -m pip install -r backend/requirements.txt",
+    "install:all": "npm run install:frontend && npm run install:backend",
+    "dev:web": "npm --prefix frontend run dev",
+    "dev:backend": "python -m backend.computeragent.server",
+    "dev:tauri": "python scripts/prepare_local_assets.py && npm --prefix frontend run tauri dev",
+    "dev": "npm run dev:tauri",
+    "build:web": "npm --prefix frontend run build",
+    "package": "python scripts/prepare_local_assets.py && npm --prefix frontend run tauri build",
+    "launch:built": "python scripts/launch_built.py",
+    "test:backend": "python -m unittest discover -s backend/tests"
+  }
+}

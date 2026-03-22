@@ -1,0 +1,7 @@
+{
+  "Framer": {
+    "regions": ["top toolbar", "left layers panel", "canvas", "right properties panel", "publish controls"],
+    "concepts": ["pages", "layers", "styles", "breakpoints", "CMS", "localization"],
+    "locator_preferences": ["role", "label", "visible text", "title", "placeholder"]
+  }
+}
